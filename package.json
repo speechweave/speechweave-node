@@ -1,6 +1,6 @@
 {
   "name": "@speechweave/node",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official SpeechWeave Node.js SDK",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -34,6 +34,14 @@
     "whisper"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/speechweave/speechweave-node.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",

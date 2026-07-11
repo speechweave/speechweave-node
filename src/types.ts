@@ -1,3 +1,5 @@
+import type { ReadStream } from "node:fs";
+
 /** Job lifecycle status. Terminal: completed, failed, cancelled. */
 export type PublicJobStatus =
 	| "queued"

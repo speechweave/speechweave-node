@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@speechweave/node.svg)](https://www.npmjs.com/package/@speechweave/node)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Official Node.js client for the SpeechWeave `/v1` API. Node.js 18+.
+The native Node.js SDK for SpeechWeave — background job polling, presigned uploads, and webhook verification. Node.js 18+.
 
 **Docs:** [speechweave.com/docs](https://speechweave.com/docs) · [API reference](https://speechweave.com/docs/api)
 
@@ -18,6 +18,45 @@ Set your API key:
 ```bash
 export SPEECHWEAVE_API_KEY="sk_..."
 ```
+
+## Quick start
+
+```ts
+import { SpeechWeave, waitForJob } from "@speechweave/node";
+
+const client = new SpeechWeave();
+
+const job = await client.transcribeFile(buffer, {
+	filename: "audio.wav",
+	model: "core",
+	language: "en",
+});
+
+const result = await waitForJob(client, job.id, { timeout_ms: 300_000 });
+console.log(result.transcript);
+```
+
+For `jobs.create`, URL input, cancel, and other job operations, see the [API reference](https://speechweave.com/docs/api).
+
+## When to use SpeechWeave
+
+Use this SDK when you want the native jobs API, presigned uploads for large files, `waitForJob`, and webhook verification.
+
+## Drop-in usage
+
+Convenience helpers if you want OpenAI/Deepgram/AssemblyAI response shapes without adding another package. They use presigned uploads like the native API.
+
+```ts
+const { text } = await client.audio.transcriptions.create({
+	file: buffer,
+	filename: "clip.mp3",
+	model: "core",
+});
+```
+
+Pass `wait: false` to return the created job without polling.
+
+More examples: [OpenAI](https://speechweave.com/docs/migration/openai) · [Deepgram](https://speechweave.com/docs/migration/deepgram) · [AssemblyAI](https://speechweave.com/docs/migration/assemblyai)
 
 ## Migrating from OpenAI
 
@@ -41,43 +80,6 @@ console.log(result.text);
 ```
 
 OpenAI model names like `whisper-1` are aliased to `core` on our backend. See the [OpenAI migration guide](https://speechweave.com/docs/migration/openai).
-
-**When to use @speechweave/node:** native jobs API, presigned uploads for large files, `waitForJob`, and webhook verification.
-
-## Quick start
-
-```ts
-import { SpeechWeave, waitForJob } from "@speechweave/node";
-
-const client = new SpeechWeave();
-
-const job = await client.transcribeFile(buffer, {
-	filename: "audio.wav",
-	model: "core",
-	language: "en",
-});
-
-const result = await waitForJob(client, job.id, { timeout_ms: 300_000 });
-console.log(result.transcript);
-```
-
-For `jobs.create`, URL input, cancel, and other job operations, see the [API reference](https://speechweave.com/docs/api).
-
-## Provider-shaped helpers (optional)
-
-Convenience helpers if you want OpenAI/Deepgram/AssemblyAI response shapes without adding another package. They use presigned uploads like the native API.
-
-```ts
-const { text } = await client.audio.transcriptions.create({
-	file: buffer,
-	filename: "clip.mp3",
-	model: "core",
-});
-```
-
-Pass `wait: false` to return the created job without polling.
-
-More examples: [OpenAI](https://speechweave.com/docs/migration/openai) · [Deepgram](https://speechweave.com/docs/migration/deepgram) · [AssemblyAI](https://speechweave.com/docs/migration/assemblyai)
 
 ## Configuration
 
