@@ -24,19 +24,46 @@ export SPEECHWEAVE_API_KEY="sk_..."
 ```ts
 import { SpeechWeave, waitForJob } from "@speechweave/node";
 
-const client = new SpeechWeave();
+const sw = new SpeechWeave({ api_key: process.env.SPEECHWEAVE_API_KEY! });
 
-const job = await client.transcribeFile(buffer, {
+const job = await sw.jobs.create({
+	file: "./podcast.mp3",
+	model: "core",
+	service_mode: "deferred",
+});
+
+const done = await waitForJob(sw, job.id);
+console.log(done.transcript);
+```
+
+`jobs.create` accepts a local path string, `Buffer`, `Blob`, or `ReadStream`. For URL input, cancel, and other job operations, see the [API reference](https://speechweave.com/docs/api).
+
+## Handling buffers & streams
+
+When audio is already in memory or you are piping a stream, use `transcribeFile` directly:
+
+```ts
+import { createReadStream } from "node:fs";
+import { SpeechWeave, waitForJob } from "@speechweave/node";
+
+const sw = new SpeechWeave();
+
+// In-memory buffer
+const fromBuffer = await sw.transcribeFile(buffer, {
 	filename: "audio.wav",
 	model: "core",
 	language: "en",
 });
 
-const result = await waitForJob(client, job.id, { timeout_ms: 300_000 });
-console.log(result.transcript);
-```
+// Stream from disk or a pipe
+const fromStream = await sw.transcribeFile(createReadStream("./podcast.mp3"), {
+	filename: "podcast.mp3",
+	model: "core",
+});
 
-For `jobs.create`, URL input, cancel, and other job operations, see the [API reference](https://speechweave.com/docs/api).
+const done = await waitForJob(sw, fromBuffer.id, { timeout_ms: 300_000 });
+console.log(done.transcript);
+```
 
 ## Webhooks
 
@@ -64,6 +91,11 @@ try {
 	if (e instanceof SpeechWeaveError) {
 		console.log(e.status);
 		console.log(e.code);
+		// Prepaid wallet / spend caps: HTTP 402 with codes like INSUFFICIENT_BALANCE,
+		// WALLET_EMPTY, SPEND_CAP_REACHED, CHECKOUT_REQUIRED.
+		if (e.status === 402) {
+			console.log("Top up the wallet or raise spend caps, then retry.");
+		}
 	}
 }
 ```

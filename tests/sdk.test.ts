@@ -62,6 +62,31 @@ describe( "SpeechWeave client", () => {
 	
 	} );
 
+	it( "maps 402 payment required to SpeechWeaveError", async () => {
+
+		const fetch_func = vi.fn( async () =>
+			jsonResponse( 402, {
+				error: "Insufficient wallet balance",
+				message: "Insufficient wallet balance",
+				code: "INSUFFICIENT_BALANCE",
+				balanceCents: 0,
+				requiredCents: 100,
+			} ),
+		);
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await expect( client.getJob( "any_id" ) ).rejects.toMatchObject( {
+			name: "SpeechWeaveError",
+			status: 402,
+			code: "INSUFFICIENT_BALANCE",
+			message: "Insufficient wallet balance",
+		} );
+	
+	} );
+
 	it( "listJobs passes query params", async () => {
 
 		const expected = { data: [
