@@ -92,7 +92,7 @@ try {
 		console.log(e.status);
 		console.log(e.code);
 		// Prepaid wallet / spend caps: HTTP 402 with codes like INSUFFICIENT_BALANCE,
-		// WALLET_EMPTY, SPEND_CAP_REACHED, CHECKOUT_REQUIRED.
+		// WALLET_EMPTY, USER_SPEND_CAP_REACHED, CHECKOUT_REQUIRED.
 		if (e.status === 402) {
 			console.log("Top up the wallet or raise spend caps, then retry.");
 		}
