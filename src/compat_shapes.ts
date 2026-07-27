@@ -1,6 +1,7 @@
 import type { ReadStream } from "node:fs";
 import type { SpeechWeaveClient } from "./client.js";
 import { SpeechWeaveError } from "./errors.js";
+import { inferContentType } from "./mime.js";
 import { waitForJob } from "./polling.js";
 import type { CreateJobResponse, ServiceMode, V1Job, UploadBodyResult } from "./types.js";
 
@@ -218,7 +219,10 @@ export async function uploadAndCreateJob(
 ) : Promise<CreateJobResponse> {
 
 	const prepared = await toUploadBody( params.data );
-	const content_type = params.content_type || prepared.content_type;
+	// prepared.content_type carries a Blob's own .type when present; only fall through to
+	// filename-based inference once that's already the generic "unknown" fallback.
+	const content_type = params.content_type
+		|| ( prepared.content_type !== "application/octet-stream" ? prepared.content_type : inferContentType( params.filename ) );
 	const body = prepared.body;
 
 	const presign = await client.presignUpload( {

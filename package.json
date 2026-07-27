@@ -25,7 +25,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "version": "node scripts/sync-version.js && git add src/version.ts"
   },
   "keywords": [
     "speechweave",

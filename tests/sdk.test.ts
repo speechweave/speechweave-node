@@ -212,7 +212,45 @@ describe( "SpeechWeave client", () => {
 		const headers = new Headers( call[ 1 ].headers );
 		expect( headers.get( "Content-Length" ) ).toBe( "5" );
 		expect( headers.get( "Content-Type" ) ).toBe( "audio/wav" );
-	
+
+	} );
+
+	it( "transcribeFile infers content_type from filename when omitted", async () => {
+
+		const fetch_func = vi.fn( async ( url : string | URL | Request ) => {
+
+			if ( String( url ).includes( "/uploads" ) ) {
+
+				return jsonResponse( 200, {
+					upload_url: "https://upload.example/presigned",
+					object_key: "obj_1",
+					expires_in: 60,
+				} );
+
+			}
+			if ( String( url ).includes( "/jobs" ) ) {
+
+				return jsonResponse( 200, { id: "job_1",
+					status: "queued" } );
+
+			}
+
+			return new Response( null, { status: 200 } );
+
+		} );
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await client.transcribeFile( Buffer.from( "audio" ), { filename: "call.flac" } );
+
+		const presign_call = fetch_func.mock.calls[ 0 ] as unknown as [string, RequestInit];
+		expect( JSON.parse( String( presign_call[ 1 ].body ) ) ).toMatchObject( { content_type: "audio/flac" } );
+		const put_call = fetch_func.mock.calls[ 1 ] as unknown as [string, RequestInit];
+		const put_headers = new Headers( put_call[ 1 ].headers );
+		expect( put_headers.get( "Content-Type" ) ).toBe( "audio/flac" );
+
 	} );
 
 } );

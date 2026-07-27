@@ -1,5 +1,6 @@
 export { SpeechWeaveClient } from "./client.js";
 export { SpeechWeaveError } from "./errors.js";
+export { inferContentType } from "./mime.js";
 export { waitForJob } from "./polling.js";
 export type { WaitForJobOptions } from "./polling.js";
 export {

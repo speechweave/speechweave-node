@@ -159,6 +159,60 @@ describe( "compat shapes", () => {
 	
 	} );
 
+	it( "uploadAndCreateJob infers content_type from filename when omitted", async () => {
+
+		const client = {
+			presignUpload: vi.fn( async () => ( {
+				upload_url: "https://example.com/upload",
+				object_key: "obj_infer",
+			} ) ),
+			putToPresignedUrl: vi.fn( async () => undefined ),
+			createJob: vi.fn( async () => ( { id: "job_infer",
+				status: "queued" } ) ),
+		} as unknown as SpeechWeaveClient;
+
+		await uploadAndCreateJob( client, {
+			data: Buffer.from( "audio" ),
+			filename: "note.opus",
+		} );
+
+		expect( client.presignUpload ).toHaveBeenCalledWith( {
+			filename: "note.opus",
+			content_type: "audio/opus",
+		} );
+		const put_args = ( client.putToPresignedUrl as ReturnType<typeof vi.fn> ).mock.calls[ 0 ];
+		expect( put_args[ 2 ] ).toBe( "audio/opus" );
+
+	} );
+
+	it( "uploadAndCreateJob keeps a Blob's own type over filename inference", async () => {
+
+		const client = {
+			presignUpload: vi.fn( async () => ( {
+				upload_url: "https://example.com/upload",
+				object_key: "obj_blob",
+			} ) ),
+			putToPresignedUrl: vi.fn( async () => undefined ),
+			createJob: vi.fn( async () => ( { id: "job_blob",
+				status: "queued" } ) ),
+		} as unknown as SpeechWeaveClient;
+
+		const blob = new Blob( [
+			"audio",
+		], { type: "audio/webm;codecs=opus" } );
+
+		await uploadAndCreateJob( client, {
+			data: blob,
+			filename: "recording.bin",
+		} );
+
+		expect( client.presignUpload ).toHaveBeenCalledWith( {
+			filename: "recording.bin",
+			content_type: "audio/webm;codecs=opus",
+		} );
+
+	} );
+
 	it( "createJobFromUrl passes service_mode", async () => {
 
 		const client = {

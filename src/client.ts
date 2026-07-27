@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import type { ReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { SpeechWeaveError } from "./errors.js";
+import { inferContentType } from "./mime.js";
 import { waitForJob } from "./polling.js";
 import type {
 	CreateJobResponse,
@@ -350,7 +351,7 @@ export class SpeechWeaveClient {
 	 * Omitting service_mode leaves the API default (deferred). Synchronous rejects files over the sync size cap (default 512 MiB).
 	 *
 	 * @param options.filename - Defaults to audio.bin.
-	 * @param options.content_type - Defaults to application/octet-stream.
+	 * @param options.content_type - Inferred from options.filename's extension when omitted; falls back to application/octet-stream.
 	 * @param options.language - Two-letter ISO code (e.g. 'en', 'es').
 	 * @param options.file_size - Content-Length when the body cannot be measured (pipes, live streams).
 	 */
@@ -368,7 +369,7 @@ export class SpeechWeaveClient {
 	) : Promise<CreateJobResponse> {
 
 		const filename = options.filename || "audio.bin";
-		const content_type = options.content_type || "application/octet-stream";
+		const content_type = options.content_type || inferContentType( filename );
 		const presign = await this.presignUpload( {
 			filename,
 			content_type,
