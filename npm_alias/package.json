@@ -1,0 +1,43 @@
+{
+  "name": "speechweave",
+  "version": "1.1.0",
+  "description": "Alias package for @speechweave/node. Installs and re-exports the official SpeechWeave SDK.",
+  "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "require": "./index.cjs"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.cjs",
+    "index.d.ts"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "speechweave",
+    "stt",
+    "transcription",
+    "whisper"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/speechweave/speechweave-node.git",
+    "directory": "npm_alias"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@speechweave/node": "1.1.0"
+  }
+}

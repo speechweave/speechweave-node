@@ -38,3 +38,7 @@ jobs:
 
       - name: Publish
         run: npm publish --provenance --access public
+
+      - name: Publish npm_alias (speechweave)
+        working-directory: npm_alias
+        run: npm publish --provenance --access public
