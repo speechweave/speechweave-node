@@ -4,6 +4,8 @@ export class SpeechWeaveError extends Error {
 	readonly code ?: string;
 	readonly body ?: unknown;
 	readonly retry_after ?: number;
+	readonly type ?: string;
+	readonly param ?: string | null;
 
 	constructor(
 		message : string,
@@ -11,6 +13,8 @@ export class SpeechWeaveError extends Error {
 		code ?: string,
 		body ?: unknown,
 		retry_after ?: number,
+		type ?: string,
+		param ?: string | null,
 	) {
 
 		super( message );
@@ -20,7 +24,9 @@ export class SpeechWeaveError extends Error {
 		this.code = code;
 		this.body = body;
 		this.retry_after = retry_after;
-	
+		this.type = type;
+		this.param = param;
+
 	}
 
 }

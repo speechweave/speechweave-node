@@ -213,6 +213,8 @@ export class SpeechWeaveClient {
 			let message : string;
 			let code : string | undefined = String( response.status );
 			let retry_after : number | undefined;
+			let type : string | undefined;
+			let param : string | null | undefined;
 			const header_retry = response.headers.get( "Retry-After" );
 			if ( header_retry ) {
 
@@ -230,21 +232,34 @@ export class SpeechWeaveClient {
 
 					err_body = await response.json();
 					const j = err_body as {
-						error ?: string;
+						error ?: string | { message ?: string; type ?: string; param ?: string | null; code ?: string };
 						message ?: string;
 						code ?: string;
 						retry_after ?: number;
 					};
-					message = String( j?.error || j?.message || response.statusText );
-					if ( j?.code ) {
+					// `error` is an object on current servers but a plain string on servers predating that change, so support both for compatibility.
+					const nested_error = j?.error && typeof j.error === "object" ? j.error : undefined;
+					message = String( nested_error?.message || j?.message || j?.error || response.statusText );
+					const resolved_code = nested_error?.code || j?.code;
+					if ( resolved_code ) {
 
-						code = j.code;
-					
+						code = resolved_code;
+
+					}
+					if ( typeof nested_error?.type === "string" ) {
+
+						type = nested_error.type;
+
+					}
+					if ( nested_error && "param" in nested_error ) {
+
+						param = nested_error.param;
+
 					}
 					if ( typeof j?.retry_after === "number" ) {
 
 						retry_after = j.retry_after;
-					
+
 					}
 				
 				}
@@ -268,8 +283,10 @@ export class SpeechWeaveClient {
 				code,
 				err_body,
 				retry_after,
+				type,
+				param,
 			);
-		
+
 		}
 
 		return ( await response.json() ) as T;

@@ -84,7 +84,38 @@ describe( "SpeechWeave client", () => {
 			code: "INSUFFICIENT_BALANCE",
 			message: "Insufficient wallet balance",
 		} );
-	
+
+	} );
+
+	it( "maps the OpenAI-style nested error envelope to SpeechWeaveError", async () => {
+
+		const fetch_func = vi.fn( async () =>
+			jsonResponse( 402, {
+				error: {
+					message: "Platform monthly spend cap reached for this account tier.",
+					type: "insufficient_quota",
+					param: null,
+					code: "PLATFORM_SPEND_CAP_REACHED",
+				},
+				code: "PLATFORM_SPEND_CAP_REACHED",
+				message: "Platform monthly spend cap reached for this account tier.",
+				limit: { period: "month", tier: 2, limitCents: 50000 },
+			} ),
+		);
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await expect( client.getJob( "any_id" ) ).rejects.toMatchObject( {
+			name: "SpeechWeaveError",
+			status: 402,
+			code: "PLATFORM_SPEND_CAP_REACHED",
+			type: "insufficient_quota",
+			param: null,
+			message: "Platform monthly spend cap reached for this account tier.",
+		} );
+
 	} );
 
 	it( "listJobs passes query params", async () => {

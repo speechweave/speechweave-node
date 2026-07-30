@@ -91,10 +91,17 @@ try {
 	if (e instanceof SpeechWeaveError) {
 		console.log(e.status);
 		console.log(e.code);
+		console.log(e.type); // OpenAI-style category, e.g. "insufficient_quota"
 		// Prepaid wallet / spend caps: HTTP 402 with codes like INSUFFICIENT_BALANCE,
-		// WALLET_EMPTY, USER_SPEND_CAP_REACHED, CHECKOUT_REQUIRED.
+		// WALLET_EMPTY, USER_SPEND_CAP_REACHED, CHECKOUT_REQUIRED,
+		// PLATFORM_SPEND_CAP_REACHED.
 		if (e.status === 402) {
-			console.log("Top up the wallet or raise spend caps, then retry.");
+			if (e.code === "PLATFORM_SPEND_CAP_REACHED") {
+				// Monthly ceiling for your account tier.
+				console.log("Monthly account limit reached; do not retry until next month.");
+			} else {
+				console.log("Top up the wallet or raise spend caps, then retry.");
+			}
 		}
 	}
 }
