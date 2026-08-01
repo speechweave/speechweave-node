@@ -1,6 +1,6 @@
 {
   "name": "speechweave",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Alias package for @speechweave/node. Installs and re-exports the official SpeechWeave SDK.",
   "type": "module",
   "main": "./index.cjs",
@@ -38,6 +38,6 @@
     "provenance": true
   },
   "dependencies": {
-    "@speechweave/node": "1.2.0"
+    "@speechweave/node": "1.3.0"
   }
 }
