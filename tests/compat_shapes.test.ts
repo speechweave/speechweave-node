@@ -109,6 +109,7 @@ describe( "compat shapes", () => {
 				object_key: "obj_123",
 			} ) ),
 			putToPresignedUrl: vi.fn( async () => undefined ),
+			ensureWithinLimits: vi.fn( async () => undefined ),
 			createJob: vi.fn( async () => ( { id: "job_1",
 				status: "queued" } ) ),
 		} as unknown as SpeechWeaveClient;
@@ -141,6 +142,7 @@ describe( "compat shapes", () => {
 				object_key: "obj_stream",
 			} ) ),
 			putToPresignedUrl: vi.fn( async () => undefined ),
+			ensureWithinLimits: vi.fn( async () => undefined ),
 			createJob: vi.fn( async () => ( { id: "job_stream",
 				status: "queued" } ) ),
 		} as unknown as SpeechWeaveClient;
@@ -167,6 +169,7 @@ describe( "compat shapes", () => {
 				object_key: "obj_infer",
 			} ) ),
 			putToPresignedUrl: vi.fn( async () => undefined ),
+			ensureWithinLimits: vi.fn( async () => undefined ),
 			createJob: vi.fn( async () => ( { id: "job_infer",
 				status: "queued" } ) ),
 		} as unknown as SpeechWeaveClient;
@@ -193,6 +196,7 @@ describe( "compat shapes", () => {
 				object_key: "obj_blob",
 			} ) ),
 			putToPresignedUrl: vi.fn( async () => undefined ),
+			ensureWithinLimits: vi.fn( async () => undefined ),
 			createJob: vi.fn( async () => ( { id: "job_blob",
 				status: "queued" } ) ),
 		} as unknown as SpeechWeaveClient;

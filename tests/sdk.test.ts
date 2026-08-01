@@ -1,3 +1,5 @@
+import { Readable } from "node:stream";
+import type { ReadStream } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { SpeechWeave } from "../src/index.js";
 import { SpeechWeaveError } from "../src/errors.js";
@@ -250,6 +252,15 @@ describe( "SpeechWeave client", () => {
 
 		const fetch_func = vi.fn( async ( url : string | URL | Request ) => {
 
+			if ( String( url ).includes( "/limits" ) ) {
+
+				return jsonResponse( 200, {
+					max_input_bytes: 500 * 1024 * 1024,
+					sync_max_bytes: 500 * 1024 * 1024,
+					proxy_max_bytes: 500 * 1024 * 1024,
+				} );
+
+			}
 			if ( String( url ).includes( "/uploads" ) ) {
 
 				return jsonResponse( 200, {
@@ -276,11 +287,187 @@ describe( "SpeechWeave client", () => {
 
 		await client.transcribeFile( Buffer.from( "audio" ), { filename: "call.flac" } );
 
-		const presign_call = fetch_func.mock.calls[ 0 ] as unknown as [string, RequestInit];
+		const call_for = ( fragment : string ) => fetch_func.mock.calls.find(
+			( call ) => String( call[ 0 ] ).includes( fragment ),
+		) as unknown as [string, RequestInit];
+
+		const presign_call = call_for( "/uploads" );
 		expect( JSON.parse( String( presign_call[ 1 ].body ) ) ).toMatchObject( { content_type: "audio/flac" } );
-		const put_call = fetch_func.mock.calls[ 1 ] as unknown as [string, RequestInit];
+		const put_call = call_for( "upload.example" );
 		const put_headers = new Headers( put_call[ 1 ].headers );
 		expect( put_headers.get( "Content-Type" ) ).toBe( "audio/flac" );
+
+	} );
+
+	it( "rejects a file over the account limit before presigning", async () => {
+
+		const fetch_func = vi.fn( async ( url : string | URL | Request ) => {
+
+			if ( String( url ).includes( "/limits" ) ) {
+
+				return jsonResponse( 200, {
+					max_input_bytes: 4,
+					sync_max_bytes: 4,
+					proxy_max_bytes: 4,
+				} );
+
+			}
+
+			return new Response( null, { status: 200 } );
+
+		} );
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await expect(
+			client.transcribeFile( Buffer.from( "oversized" ), { filename: "big.wav" } ),
+		).rejects.toMatchObject( { status: 413,
+			code: "FILE_TOO_LARGE" } );
+
+		// Only the limits lookup.
+		expect( fetch_func.mock.calls ).toHaveLength( 1 );
+		expect( String( fetch_func.mock.calls[ 0 ][ 0 ] ) ).toContain( "/limits" );
+
+	} );
+
+	it( "uploads anyway when the limits lookup fails", async () => {
+
+		const fetch_func = vi.fn( async ( url : string | URL | Request ) => {
+
+			if ( String( url ).includes( "/limits" ) ) {
+
+				return jsonResponse( 500, { error: "limits unavailable" } );
+
+			}
+			if ( String( url ).includes( "/uploads" ) ) {
+
+				return jsonResponse( 200, {
+					upload_url: "https://upload.example/presigned",
+					object_key: "obj_1",
+					expires_in: 60,
+				} );
+
+			}
+			if ( String( url ).includes( "/jobs" ) ) {
+
+				return jsonResponse( 200, { id: "job_1",
+					status: "queued" } );
+
+			}
+
+			return new Response( null, { status: 200 } );
+
+		} );
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await expect(
+			client.transcribeFile( Buffer.from( "audio" ), { filename: "call.flac" } ),
+		).resolves.toMatchObject( { id: "job_1" } );
+
+	} );
+
+	it( "caches the limits lookup across uploads", async () => {
+
+		const fetch_func = vi.fn( async ( url : string | URL | Request ) => {
+
+			if ( String( url ).includes( "/limits" ) ) {
+
+				return jsonResponse( 200, {
+					max_input_bytes: 500 * 1024 * 1024,
+					sync_max_bytes: 500 * 1024 * 1024,
+					proxy_max_bytes: 500 * 1024 * 1024,
+				} );
+
+			}
+			if ( String( url ).includes( "/uploads" ) ) {
+
+				return jsonResponse( 200, {
+					upload_url: "https://upload.example/presigned",
+					object_key: "obj_1",
+					expires_in: 60,
+				} );
+
+			}
+			if ( String( url ).includes( "/jobs" ) ) {
+
+				return jsonResponse( 200, { id: "job_1",
+					status: "queued" } );
+
+			}
+
+			return new Response( null, { status: 200 } );
+
+		} );
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await client.transcribeFile( Buffer.from( "a" ), { filename: "one.wav" } );
+		await client.transcribeFile( Buffer.from( "b" ), { filename: "two.wav" } );
+
+		const limits_calls = fetch_func.mock.calls.filter(
+			( call ) => String( call[ 0 ] ).includes( "/limits" ),
+		);
+		expect( limits_calls ).toHaveLength( 1 );
+
+	} );
+
+	it( "skips the gate when the body size cannot be measured", async () => {
+
+		const fetch_func = vi.fn( async ( url : string | URL | Request ) => {
+
+			if ( String( url ).includes( "/limits" ) ) {
+
+				return jsonResponse( 200, {
+					max_input_bytes: 1,
+					sync_max_bytes: 1,
+					proxy_max_bytes: 1,
+				} );
+
+			}
+			if ( String( url ).includes( "/uploads" ) ) {
+
+				return jsonResponse( 200, {
+					upload_url: "https://upload.example/presigned",
+					object_key: "obj_1",
+					expires_in: 60,
+				} );
+
+			}
+			if ( String( url ).includes( "/jobs" ) ) {
+
+				return jsonResponse( 200, { id: "job_1",
+					status: "queued" } );
+
+			}
+
+			return new Response( null, { status: 200 } );
+
+		} );
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		// A stream with no .path is unmeasurable, so the API stays the authority.
+		const unmeasurable = Readable.from( [
+			Buffer.from( "audio" ),
+		] ) as unknown as ReadStream;
+
+		await expect(
+			client.transcribeFile( unmeasurable, { filename: "live.wav" } ),
+		).resolves.toMatchObject( { id: "job_1" } );
+
+		const limits_calls = fetch_func.mock.calls.filter(
+			( call ) => String( call[ 0 ] ).includes( "/limits" ),
+		);
+		expect( limits_calls ).toHaveLength( 0 );
 
 	} );
 

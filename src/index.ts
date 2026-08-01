@@ -12,6 +12,7 @@ export {
 	uploadAndCreateJob,
 } from "./compat_shapes.js";
 export type {
+	AccountLimits,
 	CreateJobResponse,
 	ListJobsResponse,
 	PresignResponse,

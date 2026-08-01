@@ -12,9 +12,22 @@ export type PublicJobStatus =
 /**
  * Processing mode.
  * API defaults to deferred when omitted. `asynchronous` is treated as deferred.
- * Synchronous has an API size cap (default 512 MiB); use deferred for larger files.
+ * Synchronous has its own size cap, at or below the account cap; see {@link AccountLimits}.
  */
 export type ServiceMode = "synchronous" | "asynchronous" | "deferred" | string;
+
+/**
+ * Upload ceilings in bytes for the calling API key, from `GET /v1/limits`.
+ * These vary per account, so never hard-code them.
+ */
+export interface AccountLimits {
+	/** Largest input this account may submit, in any mode. */
+	max_input_bytes : number;
+	/** Cap for service_mode 'synchronous'. Never above max_input_bytes. */
+	sync_max_bytes : number;
+	/** Cap for the OpenAI-compatible multipart proxy. Never above max_input_bytes. */
+	proxy_max_bytes : number;
+}
 
 export interface V1Job {
 	/** Id from createJob / transcribeFile. */

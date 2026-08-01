@@ -5,6 +5,7 @@ import { SpeechWeaveError } from "./errors.js";
 import { inferContentType } from "./mime.js";
 import { waitForJob } from "./polling.js";
 import type {
+	AccountLimits,
 	CreateJobResponse,
 	CancelJobResponse,
 	ListJobsResponse,
@@ -14,6 +15,9 @@ import type {
 	V1Job,
 } from "./types.js";
 import { VERSION } from "./version.js";
+
+/** How long GET /v1/limits is reused before refetching. */
+const LIMITS_CACHE_MS = 5 * 60 * 1000;
 
 function normalizeBaseURL(
 	url : string,
@@ -53,7 +57,8 @@ async function readErrorMessage(
 
 }
 
-async function getBodyLength(
+/** Byte length of an upload body, or undefined when unmeasurable (pipes, live streams). */
+export async function getBodyLength(
 	body : Buffer | ReadStream | Blob,
 	file_size ?: number,
 ) : Promise<number | undefined> {
@@ -104,6 +109,8 @@ export class SpeechWeaveClient {
 	protected readonly api_key : string;
 	protected readonly base_url : string;
 	protected readonly fetch_func : typeof fetch;
+	private cached_limits : AccountLimits | null = null;
+	private cached_limits_at = 0;
 
 	/**
 	 * @param options.api_key - Falls back to SPEECHWEAVE_API_KEY. Throws if neither is set.
@@ -294,6 +301,105 @@ export class SpeechWeaveClient {
 	}
 
 	/**
+	 * Upload ceilings for the calling API key. Values are account-specific.
+	 *
+	 * Prefer {@link getCachedLimits} on hot paths; this always hits the network.
+	 */
+	async getLimits() : Promise<AccountLimits> {
+
+		return this.requestJson<AccountLimits>( "GET", "/limits" );
+
+	}
+
+	/**
+	 * {@link getLimits} memoized for LIMITS_CACHE_MS.
+	 *
+	 * Resolves to null instead of throwing when the lookup fails: the local size
+	 * gate is an optimization, so a limits outage must not block uploads the API
+	 * would have accepted. Failures are not cached, so the next call retries.
+	 */
+	async getCachedLimits() : Promise<AccountLimits | null> {
+
+		const now = Date.now();
+		if (
+			this.cached_limits != null
+			&& now - this.cached_limits_at < LIMITS_CACHE_MS
+		) {
+
+			return this.cached_limits;
+
+		}
+
+		try {
+
+			const limits = await this.getLimits();
+			this.cached_limits = limits;
+			this.cached_limits_at = now;
+
+			return limits;
+
+		}
+		catch {
+
+			return null;
+
+		}
+
+	}
+
+	/**
+	 * Throw before spending an upload when a known size exceeds the account cap.
+	 *
+	 * No-ops when the size is unmeasurable (pipes, live streams) or the limits
+	 * lookup failed.
+	 */
+	async ensureWithinLimits(
+		size_bytes : number | undefined,
+		service_mode ?: ServiceMode,
+	) : Promise<void> {
+
+		if ( size_bytes == null || ! Number.isFinite( size_bytes ) ) {
+
+			return;
+
+		}
+		const limits = await this.getCachedLimits();
+		if ( ! limits ) {
+
+			return;
+
+		}
+
+		const sync_capped = service_mode === "synchronous"
+			&& Number.isFinite( limits.sync_max_bytes )
+			&& size_bytes > limits.sync_max_bytes
+			&& limits.sync_max_bytes < limits.max_input_bytes;
+		if ( sync_capped ) {
+
+			throw new SpeechWeaveError(
+				`File is ${ size_bytes } bytes, over the ${ limits.sync_max_bytes } byte synchronous limit. Use service_mode 'deferred' for files this size.`,
+				413,
+				"FILE_TOO_LARGE",
+			);
+
+		}
+
+		if (
+			Number.isFinite( limits.max_input_bytes )
+			&& size_bytes > limits.max_input_bytes
+		) {
+
+			throw new SpeechWeaveError(
+				`File is ${ size_bytes } bytes, over this account's ${ limits.max_input_bytes } byte limit.`,
+				413,
+				"FILE_TOO_LARGE",
+			);
+
+		}
+
+	}
+
+	/**
 	 * Request a short-lived PUT URL and object_key for direct upload to storage.
 	 *
 	 * @param params.filename - Original name (used in the storage key).
@@ -319,7 +425,7 @@ export class SpeechWeaveClient {
 
 	/**
 	 * PUT audio bytes to a presigned upload_url.
-	 * Sets Content-Length when the body can be measured; pass file_size for pipes/live streams.
+	 * Sets Content-Length when the body can be measured. Pass file_size for pipes/live streams.
 	 *
 	 * @param uploadUrl - upload_url from presignUpload.
 	 */
@@ -364,11 +470,15 @@ export class SpeechWeaveClient {
 	}
 
 	/**
-	 * Presign → PUT → create job. Returns the create ack (no transcript); poll getJob or waitForJob.
-	 * Omitting service_mode leaves the API default (deferred). Synchronous rejects files over the sync size cap (default 512 MiB).
+	 * Presign → PUT → create job. Returns the create ack (no transcript). Poll getJob or waitForJob.
+	 * Omitting service_mode leaves the API default (deferred).
+	 *
+	 * Files whose size is measurable are checked against the account's limits
+	 * (see {@link getLimits}) before uploading, and rejected locally with a 413
+	 * SpeechWeaveError rather than spending the transfer.
 	 *
 	 * @param options.filename - Defaults to audio.bin.
-	 * @param options.content_type - Inferred from options.filename's extension when omitted; falls back to application/octet-stream.
+	 * @param options.content_type - Inferred from options.filename's extension when omitted. Falls back to application/octet-stream.
 	 * @param options.language - Two-letter ISO code (e.g. 'en', 'es').
 	 * @param options.file_size - Content-Length when the body cannot be measured (pipes, live streams).
 	 */
@@ -387,6 +497,11 @@ export class SpeechWeaveClient {
 
 		const filename = options.filename || "audio.bin";
 		const content_type = options.content_type || inferContentType( filename );
+		// Gate before presign so an oversized file costs neither a presign nor an upload.
+		await this.ensureWithinLimits(
+			await getBodyLength( file, options.file_size ),
+			options.service_mode,
+		);
 		const presign = await this.presignUpload( {
 			filename,
 			content_type,
@@ -423,7 +538,7 @@ export class SpeechWeaveClient {
 	 * Same as {@link transcribeFile}, then poll until completed, failed, or cancelled.
 	 *
 	 * @param options.wait_timeout_ms - Defaults to SPEECHWEAVE_JOB_WAIT_MS or 300_000.
-	 * @param options.poll_ms - Poll interval; defaults to 1500.
+	 * @param options.poll_ms - Poll interval. Defaults to 1500.
 	 */
 	async transcribeFileBlocking(
 		file : ReadStream | Buffer | Blob,
