@@ -24,7 +24,7 @@ export function createAssemblyTranscriptsNamespace(
 ) {
 
 	return {
-		/** AssemblyAI-shaped transcription — drop-in compatibility wrapper. Pass a URL string or binary/file body. */
+		/** AssemblyAI-shaped transcription, drop-in compatibility wrapper. Pass a URL string or binary/file body. */
 		transcribe: async (
 			audio : string | UploadBody | ReadStream,
 			config ?: AssemblyTranscribeConfig,

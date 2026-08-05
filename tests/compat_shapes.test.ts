@@ -41,7 +41,25 @@ describe( "compat shapes", () => {
 			duration: 12.5,
 			language: "en",
 		} );
-	
+
+	} );
+
+	it( "shapes OpenAI response with an explicit task override (translations)", () => {
+
+		expect(
+			shapeOpenAiResponse(
+				{
+					id: "job_123",
+					status: "completed",
+					transcript: "hello world",
+				},
+				{ task: "translate" },
+			),
+		).toEqual( {
+			text: "hello world",
+			task: "translate",
+		} );
+
 	} );
 
 	it( "shapes a Deepgram response", () => {
@@ -213,6 +231,42 @@ describe( "compat shapes", () => {
 		expect( client.presignUpload ).toHaveBeenCalledWith( {
 			filename: "recording.bin",
 			content_type: "audio/webm;codecs=opus",
+		} );
+
+	} );
+
+	it( "uploadAndCreateJob passes prompt/temperature/timestamp_granularities/task through to createJob", async () => {
+
+		const client = {
+			presignUpload: vi.fn( async () => ( {
+				upload_url: "https://example.com/upload",
+				object_key: "obj_params",
+			} ) ),
+			putToPresignedUrl: vi.fn( async () => undefined ),
+			ensureWithinLimits: vi.fn( async () => undefined ),
+			createJob: vi.fn( async () => ( { id: "job_params",
+				status: "queued" } ) ),
+		} as unknown as SpeechWeaveClient;
+
+		await uploadAndCreateJob( client, {
+			data: Buffer.from( "audio" ),
+			filename: "test.wav",
+			prompt: "SpeechWeave, DeepInfra",
+			temperature: 0.2,
+			timestamp_granularities: [ "word" ],
+			task: "translate",
+		} );
+
+		expect( client.createJob ).toHaveBeenCalledWith( {
+			object_key: "obj_params",
+			service_mode: "synchronous",
+			model: undefined,
+			language: undefined,
+			task: "translate",
+			prompt: "SpeechWeave, DeepInfra",
+			temperature: 0.2,
+			timestamp_granularities: [ "word" ],
+			metadata: undefined,
 		} );
 
 	} );

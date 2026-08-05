@@ -29,6 +29,39 @@ export interface AccountLimits {
 	proxy_max_bytes : number;
 }
 
+export type TranscriptionTask = "transcribe" | "translate";
+
+/** OpenAI Whisper `response_format` values. */
+export type TranscriptionResponseFormat = "json" | "text" | "srt" | "vtt" | "verbose_json";
+
+export type TimestampGranularity = "segment" | "word";
+
+/** A single timed transcript segment. */
+export interface TranscriptSegment {
+	start : number;
+	end : number;
+	text : string;
+	[key : string] : unknown;
+}
+
+/** A single timed word (only present when `timestamp_granularities` included `"word"`). */
+export interface TranscriptWord {
+	word : string;
+	start : number;
+	end : number;
+	[key : string] : unknown;
+}
+
+/** Shape returned by `GET /v1/jobs/:id?format=verbose_json` (and the sync proxy's `verbose_json` response). */
+export interface VerboseTranscript {
+	task : TranscriptionTask;
+	language ?: string | null;
+	duration ?: number | null;
+	text : string;
+	segments : TranscriptSegment[];
+	words ?: TranscriptWord[];
+}
+
 export interface V1Job {
 	/** Id from createJob / transcribeFile. */
 	id : string;
@@ -62,7 +95,7 @@ export interface PresignResponse {
 	filename ?: string;
 }
 
-/** Ack from job creation — no transcript yet; poll getJob or waitForJob. */
+/** Ack from job creation, no transcript yet; poll getJob or waitForJob. */
 export interface CreateJobResponse {
 	id : string;
 	status : PublicJobStatus;

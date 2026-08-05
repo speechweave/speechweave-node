@@ -23,12 +23,12 @@ function timingSafeEqual(
 }
 
 /**
- * Verify `SpeechWeave-Signature` header (Stripe-style: `t=unix,v1=hex` — may include multiple `v1=` during secret rotation).
+ * Verify `SpeechWeave-Signature` header (Stripe-style: `t=unix,v1=hex`, may include multiple `v1=` during secret rotation).
  *
- * @param secret — active webhook signing secret, or array of `[active, previous]` during a rotation window
- * @param raw_body — exact request body string (use raw bytes as UTF-8 string)
- * @param signature_header — value of the `SpeechWeave-Signature` header
- * @param tolerance_seconds — max clock skew; defaults to 300
+ * @param secret active webhook signing secret, or array of `[active, previous]` during a rotation window
+ * @param raw_body exact request body string (use raw bytes as UTF-8 string)
+ * @param signature_header value of the `SpeechWeave-Signature` header
+ * @param tolerance_seconds max clock skew; defaults to 300
  */
 export function verifyWebhook(
 	secret : string | string[],

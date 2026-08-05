@@ -35,7 +35,7 @@ export function createDeepgramListenNamespace(
 
 	return {
 		prerecorded: {
-			/** Deepgram-shaped prerecorded file transcription — drop-in compatibility wrapper. */
+			/** Deepgram-shaped prerecorded file transcription, drop-in compatibility wrapper. */
 			transcribeFile: async (
 				stream : UploadBody | ReadStream,
 				options : DeepgramTranscribeFileOptions = {},
@@ -64,7 +64,7 @@ export function createDeepgramListenNamespace(
 				);
 			
 			},
-			/** Deepgram-shaped prerecorded URL transcription — drop-in compatibility wrapper. */
+			/** Deepgram-shaped prerecorded URL transcription, drop-in compatibility wrapper. */
 			transcribeUrl: async (
 				url : string,
 				options : DeepgramTranscribeUrlOptions = {},

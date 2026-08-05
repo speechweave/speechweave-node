@@ -19,7 +19,13 @@ export type {
 	PublicJobStatus,
 	ServiceMode,
 	SpeechWeaveClientOptions,
+	TimestampGranularity,
+	TranscriptionResponseFormat,
+	TranscriptionTask,
+	TranscriptSegment,
+	TranscriptWord,
 	V1Job,
+	VerboseTranscript,
 } from "./types.js";
 export { VERSION } from "./version.js";
 export { verifyWebhook } from "./webhooks.js";
@@ -29,7 +35,12 @@ import { SpeechWeaveClient } from "./client.js";
 import { createOpenAiAudioNamespace } from "./openai/openai_compat.js";
 import { createDeepgramListenNamespace } from "./deepgram/deepgram_compat.js";
 import { createAssemblyTranscriptsNamespace } from "./assembly/assembly_compat.js";
-import type { ServiceMode, SpeechWeaveClientOptions } from "./types.js";
+import type {
+	ServiceMode,
+	SpeechWeaveClientOptions,
+	TimestampGranularity,
+	TranscriptionTask,
+} from "./types.js";
 
 function createJobsNamespace(
 	client : SpeechWeaveClient,
@@ -52,6 +63,10 @@ function createJobsNamespace(
 			model ?: string;
 			service_mode ?: ServiceMode;
 			language ?: string;
+			task ?: TranscriptionTask;
+			prompt ?: string;
+			temperature ?: number;
+			timestamp_granularities ?: TimestampGranularity[];
 			type ?: string;
 			metadata ?: Record<string, unknown>;
 			file_size ?: number;
@@ -67,12 +82,16 @@ function createJobsNamespace(
 							model: params.model,
 							service_mode: params.service_mode,
 							language: params.language,
+							task: params.task,
+							prompt: params.prompt,
+							temperature: params.temperature,
+							timestamp_granularities: params.timestamp_granularities,
 							content_type: params.content_type,
 							metadata: params.metadata,
 							file_size: params.file_size,
 						},
 					);
-				
+
 				}
 
 				return client.transcribeFile(
@@ -83,11 +102,15 @@ function createJobsNamespace(
 						model: params.model,
 						service_mode: params.service_mode,
 						language: params.language,
+						task: params.task,
+						prompt: params.prompt,
+						temperature: params.temperature,
+						timestamp_granularities: params.timestamp_granularities,
 						metadata: params.metadata,
 						file_size: params.file_size,
 					},
 				);
-			
+
 			}
 
 			return client.createJob( {
@@ -97,10 +120,14 @@ function createJobsNamespace(
 				model: params.model,
 				service_mode: params.service_mode,
 				language: params.language,
+				task: params.task,
+				prompt: params.prompt,
+				temperature: params.temperature,
+				timestamp_granularities: params.timestamp_granularities,
 				type: params.type,
 				metadata: params.metadata,
 			} );
-		
+
 		},
 		/** Fetch the current job record. */
 		get: client.getJob.bind( client ),

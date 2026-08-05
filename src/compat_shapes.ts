@@ -4,7 +4,14 @@ import { getBodyLength } from "./client.js";
 import { SpeechWeaveError } from "./errors.js";
 import { inferContentType } from "./mime.js";
 import { waitForJob } from "./polling.js";
-import type { CreateJobResponse, ServiceMode, V1Job, UploadBodyResult } from "./types.js";
+import type {
+	CreateJobResponse,
+	ServiceMode,
+	TimestampGranularity,
+	TranscriptionTask,
+	V1Job,
+	UploadBodyResult,
+} from "./types.js";
 
 export type UploadBody = Buffer | Blob | ReadStream | Uint8Array;
 
@@ -57,21 +64,22 @@ function jobLanguage(
 
 export function shapeOpenAiResponse(
 	job : Record<string, unknown>,
+	options : { task ?: TranscriptionTask } = {},
 ) : {
 	text : string;
-	task : "transcribe";
+	task : TranscriptionTask;
 	duration ?: number;
 	language ?: string;
 } {
 
 	const response : {
 		text : string;
-		task : "transcribe";
+		task : TranscriptionTask;
 		duration ?: number;
 		language ?: string;
 	} = {
 		text: jobText( job ),
-		task: "transcribe",
+		task: options.task ?? "transcribe",
 	};
 	const duration = jobDuration( job );
 	if ( duration !== undefined ) {
@@ -214,6 +222,10 @@ export async function uploadAndCreateJob(
 		content_type ?: string;
 		model ?: string;
 		language ?: string;
+		task ?: TranscriptionTask;
+		prompt ?: string;
+		temperature ?: number;
+		timestamp_granularities ?: TimestampGranularity[];
 		service_mode ?: ServiceMode;
 		metadata ?: Record<string, unknown>;
 		file_size ?: number;
@@ -248,6 +260,10 @@ export async function uploadAndCreateJob(
 		object_key: presign.object_key,
 		model: params.model,
 		language: params.language,
+		task: params.task,
+		prompt: params.prompt,
+		temperature: params.temperature,
+		timestamp_granularities: params.timestamp_granularities,
 		service_mode,
 		metadata: params.metadata,
 	} );

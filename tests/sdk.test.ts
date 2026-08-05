@@ -471,4 +471,86 @@ describe( "SpeechWeave client", () => {
 
 	} );
 
+	it( "getJobFormatted returns raw text for a text/plain response (text/srt/vtt)", async () => {
+
+		const fetch_func = vi.fn( async () =>
+			new Response( "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nhello\n", {
+				status: 200,
+				headers: { "content-type": "text/plain; charset=utf-8" },
+			} ),
+		);
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		const result = await client.getJobFormatted( "job_1", "vtt" );
+
+		expect( result ).toBe( "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nhello\n" );
+		const call = fetch_func.mock.calls[ 0 ] as unknown as [string, RequestInit];
+		expect( String( call[ 0 ] ) ).toContain( "/jobs/job_1?format=vtt" );
+
+	} );
+
+	it( "getJobFormatted returns a parsed object for verbose_json", async () => {
+
+		const verbose = {
+			task: "transcribe",
+			text: "hello world",
+			segments: [ { start: 0, end: 1, text: "hello world" } ],
+		};
+		const fetch_func = vi.fn( async () => jsonResponse( 200, verbose ) );
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		const result = await client.getJobFormatted( "job_1", "verbose_json" );
+
+		expect( result ).toEqual( verbose );
+
+	} );
+
+	it( "getJobFormatted throws SpeechWeaveError on a 409 (job not completed yet)", async () => {
+
+		const fetch_func = vi.fn( async () =>
+			jsonResponse( 409, { error: "Job is not completed yet (status: processing)" } ),
+		);
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await expect( client.getJobFormatted( "job_1", "srt" ) ).rejects.toBeInstanceOf( SpeechWeaveError );
+
+	} );
+
+	it( "createJob forwards task/prompt/temperature/timestamp_granularities", async () => {
+
+		const fetch_func = vi.fn( async () =>
+			jsonResponse( 201, { id: "job_1",
+				status: "queued" } ),
+		);
+		const client = new SpeechWeave( {
+			api_key: "sk_test",
+			fetch_func,
+		} );
+
+		await client.createJob( {
+			object_key: "obj_1",
+			task: "translate",
+			prompt: "SpeechWeave, DeepInfra",
+			temperature: 0.2,
+			timestamp_granularities: [ "word" ],
+		} );
+
+		const call = fetch_func.mock.calls[ 0 ] as unknown as [string, RequestInit];
+		const body = JSON.parse( String( call[ 1 ].body ) );
+		expect( body.task ).toBe( "translate" );
+		expect( body.prompt ).toBe( "SpeechWeave, DeepInfra" );
+		expect( body.temperature ).toBe( 0.2 );
+		expect( body.timestamp_granularities ).toEqual( [ "word" ] );
+
+	} );
+
 } );

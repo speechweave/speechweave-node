@@ -12,7 +12,11 @@ import type {
 	PresignResponse,
 	ServiceMode,
 	SpeechWeaveClientOptions,
+	TimestampGranularity,
+	TranscriptionResponseFormat,
+	TranscriptionTask,
 	V1Job,
+	VerboseTranscript,
 } from "./types.js";
 import { VERSION } from "./version.js";
 
@@ -479,7 +483,11 @@ export class SpeechWeaveClient {
 	 *
 	 * @param options.filename - Defaults to audio.bin.
 	 * @param options.content_type - Inferred from options.filename's extension when omitted. Falls back to application/octet-stream.
-	 * @param options.language - Two-letter ISO code (e.g. 'en', 'es').
+	 * @param options.language - Two-letter ISO code (e.g. 'en', 'es'). Ignored when task is 'translate'.
+	 * @param options.task - 'transcribe' (default) or 'translate' (translate to English).
+	 * @param options.prompt - Custom vocabulary/style hint (proper nouns, acronyms) for the first ~30s window.
+	 * @param options.temperature - Decoding temperature, clamped to [0, 1] server-side.
+	 * @param options.timestamp_granularities - Include 'word' for word-level timestamps (only meaningful with response_format 'verbose_json').
 	 * @param options.file_size - Content-Length when the body cannot be measured (pipes, live streams).
 	 */
 	async transcribeFile(
@@ -490,6 +498,10 @@ export class SpeechWeaveClient {
 			model ?: string;
 			service_mode ?: ServiceMode;
 			language ?: string;
+			task ?: TranscriptionTask;
+			prompt ?: string;
+			temperature ?: number;
+			timestamp_granularities ?: TimestampGranularity[];
 			metadata ?: Record<string, unknown>;
 			file_size ?: number;
 		} = {},
@@ -511,7 +523,7 @@ export class SpeechWeaveClient {
 		if ( Buffer.isBuffer( file ) || file instanceof Blob ) {
 
 			await this.putToPresignedUrl( presign.upload_url, file, content_type, put_opts );
-		
+
 		}
 		else {
 
@@ -521,7 +533,7 @@ export class SpeechWeaveClient {
 				content_type,
 				put_opts,
 			);
-		
+
 		}
 
 		return this.createJob( {
@@ -529,9 +541,13 @@ export class SpeechWeaveClient {
 			model: options.model,
 			service_mode: options.service_mode,
 			language: options.language,
+			task: options.task,
+			prompt: options.prompt,
+			temperature: options.temperature,
+			timestamp_granularities: options.timestamp_granularities,
 			metadata: options.metadata,
 		} );
-	
+
 	}
 
 	/**
@@ -548,6 +564,10 @@ export class SpeechWeaveClient {
 			model ?: string;
 			service_mode ?: ServiceMode;
 			language ?: string;
+			task ?: TranscriptionTask;
+			prompt ?: string;
+			temperature ?: number;
+			timestamp_granularities ?: TimestampGranularity[];
 			metadata ?: Record<string, unknown>;
 			file_size ?: number;
 			wait_timeout_ms ?: number;
@@ -576,7 +596,11 @@ export class SpeechWeaveClient {
 	 * @param params.object_key - From PresignResponse after a successful PUT.
 	 * @param params.input_url - Publicly reachable audio URL.
 	 * @param params.audio_url - Alias for input_url.
-	 * @param params.language - Two-letter ISO code (e.g. 'en', 'es').
+	 * @param params.language - Two-letter ISO code (e.g. 'en', 'es'). Ignored when task is 'translate'.
+	 * @param params.task - 'transcribe' (default) or 'translate' (translate to English).
+	 * @param params.prompt - Custom vocabulary/style hint for the first ~30s window.
+	 * @param params.temperature - Decoding temperature, clamped to [0, 1] server-side.
+	 * @param params.timestamp_granularities - Include 'word' for word-level timestamps.
 	 */
 	async createJob(
 		params : {
@@ -586,6 +610,10 @@ export class SpeechWeaveClient {
 			model ?: string;
 			service_mode ?: ServiceMode;
 			language ?: string;
+			task ?: TranscriptionTask;
+			prompt ?: string;
+			temperature ?: number;
+			timestamp_granularities ?: TimestampGranularity[];
 			type ?: string;
 			metadata ?: Record<string, unknown>;
 		},
@@ -597,41 +625,96 @@ export class SpeechWeaveClient {
 		if ( params.object_key != null ) {
 
 			payload.object_key = params.object_key;
-		
+
 		}
 		if ( params.input_url != null ) {
 
 			payload.input_url = params.input_url;
-		
+
 		}
 		if ( params.audio_url != null ) {
 
 			payload.audio_url = params.audio_url;
-		
+
 		}
 		if ( params.model != null ) {
 
 			payload.model = params.model;
-		
+
 		}
 		if ( params.service_mode != null ) {
 
 			payload.service_mode = params.service_mode;
-		
+
 		}
 		if ( params.language != null ) {
 
 			payload.language = params.language;
-		
+
+		}
+		if ( params.task != null ) {
+
+			payload.task = params.task;
+
+		}
+		if ( params.prompt != null ) {
+
+			payload.prompt = params.prompt;
+
+		}
+		if ( params.temperature != null ) {
+
+			payload.temperature = params.temperature;
+
+		}
+		if ( params.timestamp_granularities != null ) {
+
+			payload.timestamp_granularities = params.timestamp_granularities;
+
 		}
 		if ( params.metadata != null ) {
 
 			payload.metadata = params.metadata;
-		
+
 		}
 
 		return this.requestJson<CreateJobResponse>( "POST", "/jobs", payload );
-	
+
+	}
+
+	/**
+	 * Fetch a completed job's transcript re-formatted server-side from its stored segments
+	 * (`GET /v1/jobs/:id?format=`) -- the same formatting the sync OpenAI-compat proxy uses,
+	 * available for jobs submitted through the native async flow. Throws 409 (via
+	 * SpeechWeaveError) if the job isn't completed yet.
+	 *
+	 * @param format - 'text' | 'srt' | 'vtt' resolve to a raw string; 'verbose_json' to an object.
+	 */
+	async getJobFormatted(
+		job_id : string,
+		format : Exclude<TranscriptionResponseFormat, "json">,
+	) : Promise<string | VerboseTranscript> {
+
+		const response = await this.rawFetch(
+			`/jobs/${ encodeURIComponent( job_id ) }?format=${ encodeURIComponent( format ) }`,
+			{ method: "GET",
+				headers: { Accept: "application/json, text/plain" } },
+		);
+		if ( ! response.ok ) {
+
+			const message = await readErrorMessage( response );
+			throw new SpeechWeaveError( message, response.status, String( response.status ) );
+
+		}
+		const content_type = response.headers.get( "content-type" ) || "";
+		if ( content_type.includes( "application/json" ) ) {
+
+			return ( await response.json() ) as VerboseTranscript;
+
+		}
+
+		return await response.text();
+
 	}
 
 	/**
@@ -708,6 +791,10 @@ export class SpeechWeaveClient {
 			model ?: string;
 			service_mode ?: ServiceMode;
 			language ?: string;
+			task ?: TranscriptionTask;
+			prompt ?: string;
+			temperature ?: number;
+			timestamp_granularities ?: TimestampGranularity[];
 			content_type ?: string;
 			metadata ?: Record<string, unknown>;
 			file_size ?: number;
@@ -725,11 +812,15 @@ export class SpeechWeaveClient {
 				model: options.model,
 				service_mode: options.service_mode,
 				language: options.language,
+				task: options.task,
+				prompt: options.prompt,
+				temperature: options.temperature,
+				timestamp_granularities: options.timestamp_granularities,
 				metadata: options.metadata,
 				file_size: options.file_size,
 			},
 		);
-	
+
 	}
 
 }
