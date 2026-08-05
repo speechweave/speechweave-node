@@ -18,9 +18,10 @@ VERSION=${VERSION#v};
 
 echo "Releasing v$VERSION...";
 
-echo "Running type checks and tests";
+echo "Running type checks, tests, and dependency audit";
 npm run check;
 npm test;
+npm audit;
 
 npm version "$VERSION" -m "chore: release v%s";
 
