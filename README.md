@@ -116,7 +116,7 @@ try {
 		} else if (e.status === 402) {
 			console.log("Top up the wallet or raise spend caps, then retry.");
 		// HTTP 403 with code EMAIL_UNVERIFIED: the account owning this API key hasn't
-		// verified its email yet. Verify it, then retry -- the key itself is still valid.
+		// verified its email yet. Verify it, then retry. The key itself is still valid.
 		} else if (e.status === 403 && e.code === "EMAIL_UNVERIFIED") {
 			console.log("Verify the account email before uploading or creating jobs.");
 		}
