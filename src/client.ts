@@ -406,13 +406,15 @@ export class SpeechWeaveClient {
 	/**
 	 * Request a short-lived PUT URL and object_key for direct upload to storage.
 	 *
-	 * @param params.filename - Original name (used in the storage key).
-	 * @param params.content_type - MIME type that must match the subsequent PUT.
+	 * @param params.filename Original name (used in the storage key).
+	 * @param params.content_type MIME type that must match the subsequent PUT.
+	 * @param params.content_length Declared upload size in bytes (when known).
 	 */
 	async presignUpload(
 		params : {
 			filename : string;
 			content_type : string;
+			content_length ?: number;
 		},
 	) : Promise<PresignResponse> {
 
@@ -422,6 +424,7 @@ export class SpeechWeaveClient {
 			{
 				filename: params.filename,
 				content_type: params.content_type,
+				...( params.content_length != null ? { content_length: params.content_length } : {} ),
 			},
 		);
 	
@@ -509,14 +512,13 @@ export class SpeechWeaveClient {
 
 		const filename = options.filename || "audio.bin";
 		const content_type = options.content_type || inferContentType( filename );
+		const size_bytes = await getBodyLength( file, options.file_size );
 		// Gate before presign so an oversized file costs neither a presign nor an upload.
-		await this.ensureWithinLimits(
-			await getBodyLength( file, options.file_size ),
-			options.service_mode,
-		);
+		await this.ensureWithinLimits( size_bytes, options.service_mode );
 		const presign = await this.presignUpload( {
 			filename,
 			content_type,
+			content_length: size_bytes,
 		} );
 		const put_opts = { file_size: options.file_size };
 

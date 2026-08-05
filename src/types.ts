@@ -78,10 +78,6 @@ export interface V1Job {
 	completed_at ?: string | null;
 	/** Failure message when status is failed. */
 	error ?: string | null;
-	/** 0–100 while processing, when the API reports it. */
-	progress ?: number | null;
-	/** Coarse pipeline stage label while processing. */
-	stage ?: string | null;
 }
 
 export interface PresignResponse {

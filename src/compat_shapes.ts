@@ -239,15 +239,14 @@ export async function uploadAndCreateJob(
 		|| ( prepared.content_type !== "application/octet-stream" ? prepared.content_type : inferContentType( params.filename ) );
 	const body = prepared.body;
 	const service_mode = params.service_mode ?? "synchronous";
+	const size_bytes = await getBodyLength( body as Buffer | Blob | ReadStream, params.file_size );
 	// Gate before presign so an oversized file costs neither a presign nor an upload.
-	await client.ensureWithinLimits(
-		await getBodyLength( body as Buffer | Blob | ReadStream, params.file_size ),
-		service_mode,
-	);
+	await client.ensureWithinLimits( size_bytes, service_mode );
 
 	const presign = await client.presignUpload( {
 		filename: params.filename,
 		content_type,
+		content_length: size_bytes,
 	} );
 	await client.putToPresignedUrl(
 		presign.upload_url,

@@ -200,6 +200,7 @@ describe( "compat shapes", () => {
 		expect( client.presignUpload ).toHaveBeenCalledWith( {
 			filename: "note.opus",
 			content_type: "audio/opus",
+			content_length: 5,
 		} );
 		const put_args = ( client.putToPresignedUrl as ReturnType<typeof vi.fn> ).mock.calls[ 0 ];
 		expect( put_args[ 2 ] ).toBe( "audio/opus" );
@@ -231,6 +232,7 @@ describe( "compat shapes", () => {
 		expect( client.presignUpload ).toHaveBeenCalledWith( {
 			filename: "recording.bin",
 			content_type: "audio/webm;codecs=opus",
+			content_length: 5,
 		} );
 
 	} );
