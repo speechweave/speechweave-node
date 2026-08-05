@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.1]
+
+### Changed
+- **Dependency maintenance:** Ran `npm audit fix` to update transitive dev dependencies (`brace-expansion`, `nanoid`, `postcss`) to patched versions.
+
 ## [1.4.0]
 
 ### Added
